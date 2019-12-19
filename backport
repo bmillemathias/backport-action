@@ -50,7 +50,12 @@ def backport(number, branch):
     check_call(["git", "clone", "-c", auth, repository, os.environ["GITHUB_WORKSPACE"]])
     check_call(["git", "checkout", branch], cwd=os.environ["GITHUB_WORKSPACE"])
     check_call(["git", "checkout", "-b", backport_branch], cwd=os.environ["GITHUB_WORKSPACE"])
+    failed = False
+    commands = []
+    error = None
     for commit_sha in commits_sha:
+        if failed:
+            commands.append("git cherry-pick " + commit_sha)
         try:
             check_call(
                 [
@@ -72,20 +77,27 @@ def backport(number, branch):
             )
             check_output(["git", "cherry-pick", commit_sha], cwd=os.environ["GITHUB_WORKSPACE"], stderr=PIPE)
         except CalledProcessError as e:
-            fail(
-                "Error on backporting to branch {}, error on cherry picking {}:\n{}\n{}".format(
-                    branch, commits_sha, e.stderr, e.stdout
-                )
+            failed = True
+            error = "Error on backporting to branch {}, error on cherry picking {}:\n{}\n{}".format(
+                branch, commits_sha, e.stderr, e.stdout
             )
-            return
+            commands.append("git fetch")
+            commands.append("git checkout " + backport_branch)
+            commands.append("git cherry-pick " + commit_sha)
     check_call(
         ["git", "-c", auth, "push", "--set-upstream", "origin", backport_branch],
         cwd=os.environ["GITHUB_WORKSPACE"],
     )
+    if failed:
+        commands.append("git pust origin " + backport_branch)
+        fail("{}\n\nto continue do:\n{}".format(error, "\n".join(commands)))
 
     title = event["pull_request"]["title"]
     pull_request_title = "[Backport {}] {}".format(branch, title)
     pull_request_body = "Backport of #{}".format(number)
+    if failed:
+        pull_request_body += "\n\nError on cherry picking, to continue do:\n{}".format("\n".join(commands))
+        return
     pull_request = {
         "title": pull_request_title,
         "body": pull_request_body,
