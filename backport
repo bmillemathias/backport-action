@@ -15,7 +15,7 @@ auth_header = "Bearer {}".format(os.environ["INPUT_TOKEN"])
 
 
 def fail(message):
-    responce = requests.post(
+    response = requests.post(
         event["pull_request"]["_links"]["comments"]["href"],
         json={"body": message},
         headers={
@@ -24,8 +24,8 @@ def fail(message):
             "Content-Type": "application/json",
         },
     )
-    if not responce.ok:
-        print(responce.text)
+    if not response.ok:
+        print(response.text)
 
 
 def backport(number, branch):
@@ -35,39 +35,39 @@ def backport(number, branch):
     backport_branch = "backport/{}-to-{}".format(number, branch)
 
     refs = event["repository"]["url"]
-    responce = requests.get(
+    response = requests.get(
         "{}/git/ref/heads/{}".format(refs, backport_branch),
         headers={"Accept": "application/vnd.github.v3+json", "Authorization": auth_header},
     )
-    if responce.ok:
+    if response.ok:
         print("The branch {} already exists.".format(backport_branch))
         return
 
-    if responce.status_code != 404:
-        print(responce.text)
-        fail("Error getting the branch {}:\n{}".format(ref, responce.text))
+    if response.status_code != 404:
+        print(response.text)
+        fail("Error getting the branch {}:\n{}".format(ref, response.text))
         sys.exit(1)
 
     merge_commit_sha = event["pull_request"]["merge_commit_sha"]
 
-    responce = requests.get(
+    response = requests.get(
         event["repository"]["git_commits_url"].format(**{"/sha": "/" + merge_commit_sha}),
         headers={"Accept": "application/vnd.github.v3+json", "Authorization": auth_header},
     )
-    if not responce.ok:
-        print(responce.text)
-        raise Exception(responce.text)
-    if len(responce.json()["parents"]) == 1:
+    if not response.ok:
+        print(response.text)
+        raise Exception(response.text)
+    if len(response.json()["parents"]) == 1:
         commits_sha = [merge_commit_sha]
     else:
-        responce = requests.get(
+        response = requests.get(
             event["pull_request"]["_links"]["commits"]["href"],
             headers={"Accept": "application/vnd.github.v3+json", "Authorization": auth_header},
         )
-        if not responce.ok:
-            print(responce.text)
-            raise Exception(responce.text)
-        commits_sha = [c["sha"] for c in responce.json()]
+        if not response.ok:
+            print(response.text)
+            raise Exception(response.text)
+        commits_sha = [c["sha"] for c in response.json()]
 
     auth = "http.extraheader=Authorization: basic {}".format(
         base64.b64encode(("x-access-token:" + os.environ["INPUT_TOKEN"]).encode()).decode()
@@ -152,7 +152,7 @@ def backport(number, branch):
         "maintainer_can_modify": True,
     }
 
-    responce = requests.post(
+    response = requests.post(
         event["repository"]["url"] + "/pulls",
         json=pull_request,
         headers={
@@ -161,32 +161,32 @@ def backport(number, branch):
             "Content-Type": "application/json",
         },
     )
-    if not responce.ok:
-        print(responce.text)
+    if not response.ok:
+        print(response.text)
 
 
 def delete(ref):
     refs = event["repository"]["url"]
 
-    responce = requests.get(
+    response = requests.get(
         "{}/git/ref/heads/{}".format(refs, ref),
         headers={"Accept": "application/vnd.github.v3+json", "Authorization": auth_header},
     )
-    if responce.status_code == 404:
+    if response.status_code == 404:
         print("Branch {} does not exists anymore".format(ref))
         return
-    if not responce.ok:
-        print(responce.text)
-        fail("Error getting the branch {}:\n{}".format(ref, responce.text))
+    if not response.ok:
+        print(response.text)
+        fail("Error getting the branch {}:\n{}".format(ref, response.text))
         sys.exit(1)
 
-    responce = requests.delete(
+    response = requests.delete(
         "{}/git/refs/heads/{}".format(refs, ref),
         headers={"Accept": "application/vnd.github.v3+json", "Authorization": auth_header},
     )
-    if not responce.ok:
-        print(responce.text)
-        fail("Fail to delete {}:\n{}".format(ref, responce.text))
+    if not response.ok:
+        print(response.text)
+        fail("Fail to delete {}:\n{}".format(ref, response.text))
         sys.exit(1)
 
 
