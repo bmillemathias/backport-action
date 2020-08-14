@@ -39,6 +39,9 @@ def backport(number, branch):
         "{}/git/ref/heads/{}".format(refs, backport_branch),
         headers={"Accept": "application/vnd.github.v3+json", "Authorization": auth_header},
     )
+
+    print ("response: {}".format(response))
+
     if response.ok:
         print("The branch {} already exists.".format(backport_branch))
         return
