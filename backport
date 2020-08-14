@@ -48,7 +48,7 @@ def backport(number, branch):
 
     if response.status_code != 404:
         print(response.text)
-        fail("Error getting the branch {}:\n{}".format(ref, response.text))
+        fail("Error getting the branch {}:\n{}".format(refs, response.text))
         sys.exit(1)
 
     merge_commit_sha = event["pull_request"]["merge_commit_sha"]
